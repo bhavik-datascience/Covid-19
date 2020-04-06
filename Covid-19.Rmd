@@ -1,0 +1,260 @@
+---
+title: "Covid-19 Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+    social: ["twitter","facebook","menu"]
+    source_code: embed
+    theme: cosmo
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(knitr)
+library(DT)
+library(rpivotTable)
+library(ggplot2)
+library(plotly)
+library(dplyr)
+library(openintro)
+library(highcharter)
+library(ggvis)
+```
+
+```{r}
+data<-read.csv("C:/Users/Bhavik/Desktop/Data Science/Other/Covid-19.csv")
+```
+
+```{r}
+mycolors<-c("blue","#FFC125","darkgreen","darkorange")
+```
+
+Interactive Data Visualization
+===================================== 
+
+Row
+-------------------------------------
+
+### Covid-19 Analysis
+
+```{r}
+valueBox(paste("Covid-19"),
+         color = "warning")
+```
+
+### Total Infected
+
+```{r}
+valueBox(sum(data$Total.Cases),
+         icon = "fa-bug")
+```
+
+### New Infected Cases
+
+```{r}
+valueBox(sum(data$New.Cases),
+         icon = "fa-ambulance")
+```
+
+### Total Deaths 
+
+```{r}
+valueBox(sum(data$Total.Deaths),
+         icon = "fa-skull")
+```
+
+### Total Recovered
+
+```{r}
+valueBox(sum(data$Total.Recovered),
+         icon = "fa fa-heartbeat")
+```
+
+### Active Infected
+
+```{r}
+valueBox(sum(data$Active.Cases),
+         icon = "fa-plus-square")
+```
+
+Row
+-------------------------------------
+
+### Top Highest Number of Covid-19 Infected Countries
+
+```{r}
+y1<-data$Total.Cases[data$Total.Cases>1000]
+x1<-data$Country[data$Total.Cases>1000]
+x1<-as.character(x1)
+xy<-data.frame(x1,y1)
+xy$x1<-factor(xy$x1,levels = unique(xy$x1)[order(xy$y1,decreasing = T)])
+p3 <-plot_ly(xy,
+              x = ~x1,
+              y = ~y1,
+              text = paste("Country:", xy$x1,
+                           "Total.Cases:", xy$y1),
+              type = "bar") %>%
+  layout(xaxis = list(title="Countries"),
+         yaxis = list(title = "Total.Cases"))
+p3
+
+
+```
+
+### Covid-19 Percentage of Death, Recovered and Active Cases
+
+```{r}
+
+x<-c(sum(data$Total.Deaths),
+     sum(data$Total.Recovered),
+     sum(data$Active.Cases))
+Category<-c("Total Deaths","Total Recovered","Active Cases")
+xy<-data.frame(x,Category)
+p2 <- xy %>%
+  group_by(Category) %>%
+  summarise(sum = x) %>%
+  plot_ly(labels = ~Category,
+          values = ~sum,
+          marker = list(colors = c("lightblue","coral","lightgreen"))) %>%
+  add_pie(hole = 0.2) %>%
+  layout(xaxis = list(zeroline = F,
+                      showline = F,
+                      showticklabels = F,
+                      showgrid = F),
+         yaxis = list(zeroline = F,
+                      showline = F,
+                      showticklabels=F,
+                      showgrid=F))
+p2
+```
+
+
+### Comparision of Death against Recovery of Top Countries
+
+```{r}
+
+barplot_data1<-data$Total.Deaths[data$Total.Deaths>500]
+barplot_data2<-data$Total.Recovered[data$Total.Deaths>500]
+Countries<-as.character(data$Country[data$Total.Deaths>500])
+xyz<-data.frame(Countries,barplot_data1,barplot_data2)
+xyz$Countries<-factor(xyz$Countries,levels = unique(xyz$Countries)[order(xyz$barplot_data1,decreasing = T)])
+
+p3 <- plot_ly(xyz,
+              x = ~Countries,
+              y = ~barplot_data1,
+              type = "bar",
+              name = "Death") %>% 
+  add_trace(y = ~barplot_data2,
+            name = "Recovered") %>% 
+  layout(yaxis = list(title = "Cases"),
+         barmode = "group")
+p3
+
+```
+
+Map
+========================================
+
+### World Map
+
+```{r}
+cases <- data %>%
+  group_by(CountryName) %>%
+  summarize(total=first(Total.Cases))
+
+highchart() %>%
+  hc_title(text = "Corona Infected Cases in the World") %>%
+  hc_subtitle(text = "Source: Covid-19.csv") %>%
+  hc_add_series_map(worldgeojson, cases,
+                    name = "CountryName",
+                    value = "total",
+                    joinBy = c("name", "CountryName")) %>%
+  hc_mapNavigation(enabled = T)
+```
+
+Data Table
+========================================
+
+```{r}
+datatable(data,
+          caption = "Covid-19 Data",
+          rownames = T,
+          filter = "top",
+          options = list(pageLength = 25))
+```
+
+Pivot Table
+=========================================
+
+```{r}
+rpivotTable(data,
+            aggregatorName = "Sum",
+            cols= "Total",
+            rows = c("CountryName","Total.Deaths","Total.Recovered","Active.Cases","Total.Cases"),
+            rendererName = "Heatmap",
+            vals = c("Total.Cases"))
+            
+```
+
+Summary {data-orientation=columns}
+===========================================
+
+Column
+-----------------------------------
+
+### Total Deaths Around The World
+
+```{r}
+valueBox(sum(data$Total.Deaths),
+         icon = "fa-skull" )
+```
+
+### Max Number of Deaths 
+
+```{r}
+valueBox(max(data$Total.Deaths),
+         icon = "fa-skull" )
+```
+
+### Average Death Per Day
+```{r}
+valueBox(round(mean(data$Total.Deaths),
+               digits = 2),
+         icon = "fa-skull")
+```
+
+### Average Recovered Per Day
+```{r}
+valueBox(round(mean(data$Total.Recovered),
+               digits = 0),
+         icon = "fa fa-heartbeat")
+```
+
+Column
+---------------------------
+
+Report
+
+* This report is created for learning and education purpose only.
+
+* This is a report on `r sum(data$Total.Cases)` Corona Cases identified.
+
+* The average per day death was `r round(mean(data$Total.Deaths),0)`.
+
+* The average per day recovered was `r round(mean(data$Total.Recovered),0)`.
+
+This report was generated on `r format(Sys.Date(), format = "%B %d, %Y")`.
+
+About Report
+========================================
+
+Disclaim: Strictly for Learning and Education only
+
+Created by: Bhavik Dudhrejiya
+
+Email ID: Bhavik.datascience@gmail.com
+
+Data Source:https://www.worldometers.info/coronavirus/
+
+Confidential: Low!
